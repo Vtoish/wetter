@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+
+{% block title %}Setup MFA - Wetter{% endblock %}
+
+{% block content %}
+<div class="auth-card">
+    <h2>Setup Two-Factor Authentication</h2>
+    <p>Scan this QR code with your authenticator app (Google Authenticator, Authy, etc.).</p>
+
+    <div class="mfa-qr">
+        <img src="data:image/png;base64,{{ qr_data }}" alt="MFA QR Code" width="200" height="200">
+    </div>
+
+    <details class="mfa-manual">
+        <summary>Can't scan? Enter this key manually</summary>
+        <code class="mfa-secret">{{ secret }}</code>
+    </details>
+
+    <form method="POST">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="form-group">
+            <label for="token">Enter a code from your app to confirm setup</label>
+            <input type="text" id="token" name="token" required
+                   pattern="[0-9]{6}" maxlength="6" inputmode="numeric"
+                   autocomplete="one-time-code">
+        </div>
+        <button type="submit" class="btn btn-primary">Enable MFA</button>
+    </form>
+
+    {% if current_user.mfa_enabled %}
+    <hr>
+    <h3>Disable MFA</h3>
+    <form method="POST" action="{{ url_for('auth.mfa_disable') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="form-group">
+            <label for="disable-token">Enter current code to disable</label>
+            <input type="text" id="disable-token" name="token" required
+                   pattern="[0-9]{6}" maxlength="6" inputmode="numeric">
+        </div>
+        <button type="submit" class="btn btn-danger">Disable MFA</button>
+    </form>
+    {% endif %}
+</div>
+{% endblock %}

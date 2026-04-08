@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}Analytics — Wetter{% endblock %}
+
+{% block content %}
+<h1>Analytics</h1>
+
+<div class="card-grid">
+    <div class="card">
+        <h2>Historical Data</h2>
+        <p>Temperature, humidity, pressure, and precipitation trends over time.</p>
+        <p><em>Charts will be rendered here using observation history.</em></p>
+    </div>
+
+    <div class="card">
+        <h2>Forecast Accuracy</h2>
+        <p>Compare forecasts from Open-Meteo and Met.no against actual observations.</p>
+        <p><em>Accuracy metrics and comparison charts will appear here.</em></p>
+    </div>
+
+    <div class="card">
+        <h2>Trend Analysis</h2>
+        <p>Rolling averages, seasonal patterns, and anomaly detection.</p>
+        <p><em>Trend visualizations will be rendered here.</em></p>
+    </div>
+
+    <div class="card">
+        <h2>Model Performance</h2>
+        <p>ML model accuracy, confidence distributions, and version comparisons.</p>
+        <p><em>Model metrics and performance charts will appear here.</em></p>
+    </div>
+</div>
+{% endblock %}

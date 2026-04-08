@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Wetter{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    {% block head %}{% endblock %}
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-container">
+            <a href="{{ url_for('index') }}" class="nav-brand">Wetter</a>
+            <div class="nav-links">
+                {% if current_user.is_authenticated %}
+                    <span class="nav-user">{{ current_user.email }}</span>
+                    <a href="{{ url_for('locations.index') }}" class="nav-link">Locations</a>
+                    <a href="{{ url_for('alerts.index') }}" class="nav-link">Alerts</a>
+                    {% if current_user.role in ('analyst', 'admin') %}
+                        <a href="{{ url_for('analytics.index') }}" class="nav-link">Analytics</a>
+                    {% endif %}
+                    {% if not current_user.mfa_enabled %}
+                        <a href="{{ url_for('auth.mfa_setup') }}" class="nav-link nav-warning">Enable MFA</a>
+                    {% endif %}
+                    {% if current_user.role == 'admin' %}
+                        <a href="{{ url_for('admin.users') }}" class="nav-link">Admin</a>
+                        <a href="{{ url_for('federation.peers') }}" class="nav-link">Federation</a>
+                    {% endif %}
+                    <form method="POST" action="{{ url_for('auth.logout') }}" class="nav-form">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit" class="nav-link nav-btn">Logout</button>
+                    </form>
+                {% else %}
+                    <a href="{{ url_for('auth.login') }}" class="nav-link">Login</a>
+                    <a href="{{ url_for('auth.signup') }}" class="nav-link">Sign Up</a>
+                {% endif %}
+            </div>
+        </div>
+    </nav>
+
+    <div class="container">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }}">{{ message }}</div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        {% block content %}{% endblock %}
+    </div>
+</body>
+</html>

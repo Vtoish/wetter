@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+
+{% block title %}MFA Verification - Wetter{% endblock %}
+
+{% block content %}
+<div class="auth-card">
+    <h2>Two-Factor Authentication</h2>
+    <p>Enter the 6-digit code from your authenticator app.</p>
+    <form method="POST">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="form-group">
+            <label for="token">Code</label>
+            <input type="text" id="token" name="token" required
+                   pattern="[0-9]{6}" maxlength="6" inputmode="numeric"
+                   autocomplete="one-time-code" autofocus>
+        </div>
+        <button type="submit" class="btn btn-primary">Verify</button>
+    </form>
+</div>
+{% endblock %}

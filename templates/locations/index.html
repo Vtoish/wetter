@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}My Locations — Wetter{% endblock %}
+
+{% block content %}
+<h1>My Locations</h1>
+
+<form method="POST" action="{{ url_for('locations.create') }}" class="card" style="margin-bottom: 2rem;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <h2>Add Location</h2>
+    <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
+        <input type="text" name="name" placeholder="Name" required>
+        <input type="number" name="latitude" placeholder="Latitude" step="any" required>
+        <input type="number" name="longitude" placeholder="Longitude" step="any" required>
+        <input type="text" name="timezone" placeholder="Timezone" value="UTC">
+        <button type="submit">Add</button>
+    </div>
+</form>
+
+{% if locations %}
+<div class="card-grid">
+    {% for loc in locations %}
+    <div class="card">
+        <h3><a href="{{ url_for('locations.detail', location_id=loc.id) }}">{{ loc.name }}</a></h3>
+        <p>{{ loc.latitude }}, {{ loc.longitude }}</p>
+        <p>Timezone: {{ loc.timezone }}</p>
+        <form method="POST" action="{{ url_for('locations.delete', location_id=loc.id) }}" style="margin-top: 0.5rem;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" onclick="return confirm('Delete this location?')">Delete</button>
+        </form>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<p>No locations yet. Add one above to get started.</p>
+{% endif %}
+{% endblock %}

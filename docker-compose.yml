@@ -1,0 +1,27 @@
+services:
+  web:
+    build: .
+    ports:
+      - "5000:5000"
+    env_file:
+      - .env
+    volumes:
+      - db-data:/app/instance
+      - app-data:/app/data
+    restart: unless-stopped
+
+  worker:
+    build: .
+    command: python -c "from app import create_app; app = create_app(); app.app_context().push(); from services.scheduler import init_scheduler; init_scheduler(app)"
+    env_file:
+      - .env
+    environment:
+      - SCHEDULER_ENABLED=true
+    volumes:
+      - db-data:/app/instance
+      - app-data:/app/data
+    restart: unless-stopped
+
+volumes:
+  db-data:
+  app-data:

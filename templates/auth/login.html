@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+
+{% block title %}Login - Wetter{% endblock %}
+
+{% block content %}
+<div class="auth-card">
+    <h2>Login</h2>
+    <form method="POST">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="form-group">
+            <label for="email">Email</label>
+            <input type="email" id="email" name="email" required autocomplete="email">
+        </div>
+        <div class="form-group">
+            <label for="password">Password</label>
+            <input type="password" id="password" name="password" required autocomplete="current-password">
+        </div>
+        <button type="submit" class="btn btn-primary">Login</button>
+    </form>
+    <p class="auth-footer">Don't have an account? <a href="{{ url_for('auth.signup') }}">Sign up</a></p>
+</div>
+{% endblock %}

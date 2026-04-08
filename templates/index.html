@@ -1,0 +1,358 @@
+{% extends "base.html" %}
+
+{% block head %}
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+{% endblock %}
+
+{% block content %}
+
+        <div class="search-bar">
+            <input type="text" id="search-input" placeholder="Search for a city..." autocomplete="off">
+            <button id="search-btn">Search</button>
+            <div class="search-results" id="search-results"></div>
+        </div>
+
+        <div class="location-name" id="location-name"></div>
+
+        <!-- Current Weather -->
+        <div class="card" id="current-card">
+            <h2>Current Weather</h2>
+            <div class="current-weather">
+                <div class="placeholder" id="current-placeholder">Search for a location to see weather</div>
+                <div id="current-data" style="display:none">
+                    <div class="temperature" id="temp"></div>
+                    <div class="description" id="desc"></div>
+                    <div class="details">
+                        <span id="humidity"></span>
+                        <span id="wind"></span>
+                    </div>
+                    <div class="source-badge" id="source"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 7-Day Forecast -->
+        <div class="card" id="forecast-card">
+            <h2>7-Day Forecast</h2>
+            <div class="placeholder" id="forecast-placeholder">Search for a location to see forecast</div>
+            <div class="forecast-row" id="forecast-row"></div>
+        </div>
+
+        <!-- Weather Map -->
+        <div class="card">
+            <h2>Weather Map</h2>
+
+            <div class="map-toolbar">
+                <div class="toolbar-group">
+                    <label>Base</label>
+                    <select id="base-layer-select">
+                        <option value="osm">Standard</option>
+                        <option value="topo">Topographic</option>
+                        <option value="dark">Dark</option>
+                    </select>
+                </div>
+                <div class="toolbar-group">
+                    <label>Color</label>
+                    <select id="color-scheme-select">
+                        <option value="1">Original</option>
+                        <option value="2" selected>Universal Blue</option>
+                        <option value="3">TITAN</option>
+                        <option value="4">The Weather Channel</option>
+                        <option value="5">Meteored</option>
+                        <option value="6">NEXRAD Level III</option>
+                        <option value="7">Rainbow</option>
+                        <option value="8">Dark Sky</option>
+                    </select>
+                </div>
+                <div class="toolbar-group">
+                    <label>Options</label>
+                    <label class="checkbox-label"><input type="checkbox" id="smooth-check" checked> Smooth</label>
+                    <label class="checkbox-label"><input type="checkbox" id="snow-check" checked> Snow</label>
+                </div>
+                <div class="toolbar-group">
+                    <label>Opacity</label>
+                    <input type="range" id="opacity-slider" min="0" max="100" value="70" class="slider">
+                </div>
+            </div>
+
+            <div id="radar-map"></div>
+
+            <div class="radar-controls">
+                <button id="radar-play">Play</button>
+                <input type="range" id="frame-slider" min="0" max="0" value="0" class="slider frame-slider">
+                <span class="radar-time" id="radar-time">--:--</span>
+            </div>
+        </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        const state = {
+            lat: null,
+            lon: null,
+            locationName: "",
+            map: null,
+            baseLayer: null,
+            // Radar
+            radarHost: "",
+            radarFrames: [],   // [{time, path}]
+            radarLayers: [],   // L.tileLayer instances
+            radarFrameIndex: 0,
+            radarPlaying: false,
+            radarInterval: null,
+            opacity: 0.7,
+        };
+
+        // --- Base map layers ---
+        const baseLayers = {
+            osm: () => L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+                attribution: '&copy; OpenStreetMap',
+                maxZoom: 18,
+            }),
+            topo: () => L.tileLayer("https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png", {
+                attribution: '&copy; OpenTopoMap',
+                maxZoom: 17,
+            }),
+            dark: () => L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
+                attribution: '&copy; CartoDB',
+                maxZoom: 19,
+            }),
+        };
+
+        // --- Location Search ---
+        const searchInput = document.getElementById("search-input");
+        const searchBtn = document.getElementById("search-btn");
+        const searchResults = document.getElementById("search-results");
+
+        function doSearch() {
+            const q = searchInput.value.trim();
+            if (!q) return;
+            fetch(`/api/search?q=${encodeURIComponent(q)}`)
+                .then(r => r.json())
+                .then(results => {
+                    searchResults.innerHTML = "";
+                    if (results.length === 0) {
+                        searchResults.innerHTML = '<div class="result-item">No results found</div>';
+                    } else {
+                        results.forEach(r => {
+                            const div = document.createElement("div");
+                            div.className = "result-item";
+                            const parts = [r.name];
+                            if (r.admin1) parts.push(r.admin1);
+                            if (r.country) parts.push(r.country);
+                            div.textContent = parts.join(", ");
+                            div.addEventListener("click", () => selectLocation(r));
+                            searchResults.appendChild(div);
+                        });
+                    }
+                    searchResults.classList.add("active");
+                });
+        }
+
+        searchBtn.addEventListener("click", doSearch);
+        searchInput.addEventListener("keydown", e => { if (e.key === "Enter") doSearch(); });
+        document.addEventListener("click", e => {
+            if (!e.target.closest(".search-bar")) searchResults.classList.remove("active");
+        });
+
+        function selectLocation(loc) {
+            state.lat = loc.latitude;
+            state.lon = loc.longitude;
+            const parts = [loc.name];
+            if (loc.admin1) parts.push(loc.admin1);
+            if (loc.country) parts.push(loc.country);
+            state.locationName = parts.join(", ");
+
+            localStorage.setItem("wetter_location", JSON.stringify({
+                lat: state.lat, lon: state.lon, name: state.locationName
+            }));
+
+            searchResults.classList.remove("active");
+            searchInput.value = "";
+            document.getElementById("location-name").textContent = state.locationName;
+            fetchWeather();
+            centerMap();
+        }
+
+        // --- Weather ---
+        function fetchWeather() {
+            if (state.lat === null) return;
+
+            document.getElementById("current-placeholder").textContent = "Loading...";
+            document.getElementById("forecast-placeholder").textContent = "Loading...";
+
+            fetch(`/api/weather?lat=${state.lat}&lon=${state.lon}`)
+                .then(r => r.json())
+                .then(data => {
+                    if (data.error && !data.current) {
+                        document.getElementById("current-placeholder").textContent = data.error;
+                        document.getElementById("forecast-placeholder").textContent = data.error;
+                        return;
+                    }
+                    renderCurrent(data);
+                    renderForecast(data.daily || []);
+                });
+        }
+
+        function renderCurrent(data) {
+            const c = data.current;
+            document.getElementById("current-placeholder").style.display = "none";
+            document.getElementById("current-data").style.display = "";
+            document.getElementById("temp").textContent = `${Math.round(c.temperature)}\u00B0C`;
+            document.getElementById("desc").textContent = c.description;
+            document.getElementById("humidity").textContent = `Humidity: ${c.humidity}%`;
+            document.getElementById("wind").textContent = `Wind: ${c.wind_speed} km/h`;
+            document.getElementById("source").textContent = `Source: ${data.source}`;
+        }
+
+        function renderForecast(days) {
+            const row = document.getElementById("forecast-row");
+            document.getElementById("forecast-placeholder").style.display = "none";
+            row.innerHTML = "";
+            days.forEach(d => {
+                const date = new Date(d.date + "T00:00:00");
+                const dayName = date.toLocaleDateString("en", { weekday: "short" });
+                const card = document.createElement("div");
+                card.className = "day-card";
+                card.innerHTML = `
+                    <div class="date">${dayName}</div>
+                    <div class="temps">
+                        <span class="high">${Math.round(d.temp_max)}\u00B0</span>
+                        <span class="low">${Math.round(d.temp_min)}\u00B0</span>
+                    </div>
+                    <div class="precip">${d.precipitation} mm</div>
+                    <div class="day-desc">${d.description}</div>
+                `;
+                row.appendChild(card);
+            });
+        }
+
+        // --- Weather Map ---
+        function buildTileUrl(path) {
+            const color = document.getElementById("color-scheme-select").value;
+            const smooth = document.getElementById("smooth-check").checked ? 1 : 0;
+            const snow = document.getElementById("snow-check").checked ? 1 : 0;
+            return `${state.radarHost}${path}/256/{z}/{x}/{y}/${color}/${smooth}_${snow}.png`;
+        }
+
+        function initMap() {
+            state.map = L.map("radar-map").setView([50, 10], 5);
+            state.baseLayer = baseLayers.osm();
+            state.baseLayer.addTo(state.map);
+            loadRadar();
+        }
+
+        function centerMap() {
+            if (state.map && state.lat !== null) {
+                state.map.setView([state.lat, state.lon], 8);
+            }
+        }
+
+        function clearRadarLayers() {
+            state.radarLayers.forEach(layer => state.map.removeLayer(layer));
+            state.radarLayers = [];
+        }
+
+        function rebuildRadarLayers() {
+            const currentIndex = state.radarFrameIndex;
+            clearRadarLayers();
+            state.radarLayers = state.radarFrames.map(f =>
+                L.tileLayer(buildTileUrl(f.path), {
+                    opacity: 0,
+                    zIndex: 10,
+                    maxNativeZoom: 7,
+                    maxZoom: 18,
+                })
+            );
+            state.radarLayers.forEach(layer => layer.addTo(state.map));
+            if (state.radarLayers.length > 0) {
+                const idx = Math.min(currentIndex, state.radarLayers.length - 1);
+                showRadarFrame(idx);
+            }
+        }
+
+        function loadRadar() {
+            fetch("/api/radar")
+                .then(r => r.json())
+                .then(data => {
+                    if (data.error) return;
+                    state.radarHost = data.host;
+                    state.radarFrames = (data.frames || []).concat(data.nowcast || []);
+                    if (state.radarFrames.length === 0) return;
+
+                    const slider = document.getElementById("frame-slider");
+                    slider.max = state.radarFrames.length - 1;
+                    slider.value = state.radarFrames.length - 1;
+
+                    rebuildRadarLayers();
+                });
+        }
+
+        function showRadarFrame(idx) {
+            state.radarLayers.forEach((layer, i) =>
+                layer.setOpacity(i === idx ? state.opacity : 0)
+            );
+            state.radarFrameIndex = idx;
+            document.getElementById("frame-slider").value = idx;
+            const ts = state.radarFrames[idx].time;
+            document.getElementById("radar-time").textContent =
+                new Date(ts * 1000).toLocaleTimeString();
+        }
+
+        // --- Controls ---
+        document.getElementById("radar-play").addEventListener("click", () => {
+            if (state.radarPlaying) {
+                clearInterval(state.radarInterval);
+                state.radarPlaying = false;
+                document.getElementById("radar-play").textContent = "Play";
+            } else {
+                if (state.radarLayers.length === 0) return;
+                state.radarPlaying = true;
+                document.getElementById("radar-play").textContent = "Pause";
+                state.radarInterval = setInterval(() => {
+                    const next = (state.radarFrameIndex + 1) % state.radarLayers.length;
+                    showRadarFrame(next);
+                }, 500);
+            }
+        });
+
+        document.getElementById("frame-slider").addEventListener("input", e => {
+            if (state.radarLayers.length > 0) {
+                showRadarFrame(parseInt(e.target.value));
+            }
+        });
+
+        document.getElementById("opacity-slider").addEventListener("input", e => {
+            state.opacity = parseInt(e.target.value) / 100;
+            if (state.radarLayers.length > 0) {
+                state.radarLayers[state.radarFrameIndex].setOpacity(state.opacity);
+            }
+        });
+
+        document.getElementById("base-layer-select").addEventListener("change", e => {
+            state.map.removeLayer(state.baseLayer);
+            state.baseLayer = baseLayers[e.target.value]();
+            state.baseLayer.addTo(state.map);
+            state.baseLayer.bringToBack();
+        });
+
+        document.getElementById("color-scheme-select").addEventListener("change", () => rebuildRadarLayers());
+        document.getElementById("smooth-check").addEventListener("change", () => rebuildRadarLayers());
+        document.getElementById("snow-check").addEventListener("change", () => rebuildRadarLayers());
+
+        // --- Init ---
+        const saved = localStorage.getItem("wetter_location");
+        if (saved) {
+            const loc = JSON.parse(saved);
+            state.lat = loc.lat;
+            state.lon = loc.lon;
+            state.locationName = loc.name;
+            document.getElementById("location-name").textContent = loc.name;
+        }
+
+        initMap();
+        if (state.lat !== null) {
+            fetchWeather();
+            centerMap();
+        }
+    </script>
+{% endblock %}

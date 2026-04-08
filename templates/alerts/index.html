@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+{% block title %}Alerts — Wetter{% endblock %}
+
+{% block content %}
+<h1>Alert Rules</h1>
+
+<form method="POST" action="{{ url_for('alerts.create_rule') }}" class="card" style="margin-bottom: 2rem;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <h2>New Alert Rule</h2>
+    <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
+        <input type="text" name="name" placeholder="Rule name" required>
+        <input type="number" name="location_id" placeholder="Location ID" required>
+        <select name="field">
+            <option value="rain_probability">Rain Probability</option>
+            <option value="temperature">Temperature</option>
+            <option value="wind_speed">Wind Speed</option>
+            <option value="humidity">Humidity</option>
+        </select>
+        <select name="operator">
+            <option value="gt">Greater than</option>
+            <option value="lt">Less than</option>
+            <option value="eq">Equal to</option>
+        </select>
+        <input type="number" name="threshold" placeholder="Threshold" step="any" required>
+        <button type="submit">Create</button>
+    </div>
+</form>
+
+{% if rules %}
+<h2>Active Rules</h2>
+<table class="admin-table">
+    <thead>
+        <tr>
+            <th>Name</th>
+            <th>Location</th>
+            <th>Condition</th>
+            <th>Enabled</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for rule in rules %}
+        <tr>
+            <td>{{ rule.name }}</td>
+            <td>{{ rule.location_id }}</td>
+            <td>{{ rule.condition_json }}</td>
+            <td>{{ "Yes" if rule.enabled else "No" }}</td>
+            <td>
+                <form method="POST" action="{{ url_for('alerts.delete_rule', rule_id=rule.id) }}" style="display:inline;">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" onclick="return confirm('Delete this rule?')">Delete</button>
+                </form>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endif %}
+
+{% if alerts %}
+<h2>Recent Alerts</h2>
+<table class="admin-table">
+    <thead>
+        <tr>
+            <th>Time</th>
+            <th>Message</th>
+            <th>Acknowledged</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for alert in alerts %}
+        <tr>
+            <td>{{ alert.triggered_at.strftime('%Y-%m-%d %H:%M') }}</td>
+            <td>{{ alert.message }}</td>
+            <td>{{ "Yes" if alert.acknowledged else "No" }}</td>
+            <td>
+                {% if not alert.acknowledged %}
+                <form method="POST" action="{{ url_for('alerts.acknowledge', alert_id=alert.id) }}" style="display:inline;">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit">Acknowledge</button>
+                </form>
+                {% endif %}
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endif %}
+{% endblock %}

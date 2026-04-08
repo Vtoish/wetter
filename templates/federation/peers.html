@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}Federation Peers — Wetter{% endblock %}
+
+{% block content %}
+<h1>Federation Peers</h1>
+
+<form method="POST" action="{{ url_for('federation.add_peer') }}" class="card" style="margin-bottom: 2rem;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <h2>Add Peer Instance</h2>
+    <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
+        <input type="text" name="name" placeholder="Peer name" required>
+        <input type="url" name="url" placeholder="https://peer.example.com" required>
+        <input type="text" name="api_key" placeholder="API key" required>
+        <button type="submit">Add Peer</button>
+    </div>
+</form>
+
+{% if peers %}
+<table class="admin-table">
+    <thead>
+        <tr>
+            <th>Name</th>
+            <th>URL</th>
+            <th>Trusted</th>
+            <th>Last Sync</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for peer in peers %}
+        <tr>
+            <td>{{ peer.name }}</td>
+            <td>{{ peer.url }}</td>
+            <td>{{ "Yes" if peer.trusted else "No" }}</td>
+            <td>{{ peer.last_sync_at.strftime('%Y-%m-%d %H:%M') if peer.last_sync_at else "Never" }}</td>
+            <td>
+                <form method="POST" action="{{ url_for('federation.delete_peer', peer_id=peer.id) }}" style="display:inline;">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" onclick="return confirm('Remove this peer?')">Remove</button>
+                </form>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<p>No federation peers configured. Add a peer above to enable data sharing.</p>
+{% endif %}
+{% endblock %}

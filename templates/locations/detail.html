@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}{{ location.name }} — Wetter{% endblock %}
+
+{% block content %}
+<h1>{{ location.name }}</h1>
+<p>{{ location.latitude }}, {{ location.longitude }} &middot; {{ location.timezone }}</p>
+
+<div class="card-grid">
+    <div class="card">
+        <h2>Current Conditions</h2>
+        <p>Weather data for this location will appear here.</p>
+    </div>
+
+    <div class="card">
+        <h2>Predictions</h2>
+        <p>ML-powered predictions will appear here once models are trained.</p>
+    </div>
+
+    <div class="card">
+        <h2>Sensors</h2>
+        <p>Connected sensors will be listed here.</p>
+    </div>
+
+    <div class="card">
+        <h2>Alerts</h2>
+        <p>Active alert rules for this location will appear here.</p>
+    </div>
+</div>
+
+<p style="margin-top: 2rem;">
+    <a href="{{ url_for('locations.index') }}">&larr; Back to locations</a>
+</p>
+{% endblock %}
