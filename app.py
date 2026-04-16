@@ -1,6 +1,6 @@
 import logging
 from typing import Any
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from flask import Flask, Response, jsonify, render_template, request
 from flask_login import LoginManager, login_required  # type: ignore[import-untyped]
@@ -97,28 +97,49 @@ def create_app(test_config: dict[str, Any] | None = None) -> Flask:
         if lat is None or lon is None:
             return jsonify({"error": "lat and lon parameters are required"}), 400
 
-        future_primary = executor.submit(openmeteo.fetch_weather, lat, lon)
-        future_secondary = executor.submit(metno.fetch_weather, lat, lon)
+        futures = [
+            executor.submit(openmeteo.fetch_weather, lat, lon),
+            executor.submit(metno.fetch_weather, lat, lon)
+        ]
 
-        primary: dict[str, Any] | None = future_primary.result()
-        secondary: dict[str, Any] | None = future_secondary.result()
+        results: list[dict[str, Any]] = []
+        for future in as_completed(futures):
+            res = future.result()
+            if res:
+                results.append(res)
 
-        result: dict[str, Any]
-        if primary:
-            result = primary
-            if secondary:
-                result["secondary"] = secondary
-        elif secondary:
-            result = secondary
-        else:
-            result = {
+        if not results:
+            return jsonify({
                 "error": "All weather sources unavailable",
                 "source": None,
                 "current": None,
                 "daily": [],
-            }
+            }), 503
 
-        return jsonify(result)
+        if len(results) == 2:
+            # We have both. One is primary, one is secondary.
+            # We want to keep the structure where 'secondary' is added to the primary.
+            # Since we don't know which is which from as_completed alone without checking 'source',
+            # let's identify them by their source.
+            primary_res: dict[str, Any] | None = None
+            secondary_res: dict[str, Any] | None = None
+
+            for r in results:
+                if r.get("source") == "openmeteo":
+                    primary_res = r
+                elif r.get("source") == "metno":
+                    secondary_res = r
+
+            if primary_res and secondary_res:
+                result = primary_res.copy()
+                result["secondary"] = secondary_res
+                return jsonify(result)
+            elif primary_res:
+                return jsonify(primary_res)
+            else:
+                return jsonify(secondary_res)
+
+        return jsonify(results[0])
 
 
     @app.route("/api/radar")
