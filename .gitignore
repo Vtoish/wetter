@@ -27,3 +27,6 @@ Thumbs.db
 # Data exports
 data/exports/
 data/models/
+
+# Local Notes
+code_review.md

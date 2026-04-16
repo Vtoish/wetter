@@ -23,11 +23,11 @@ api_bp: Blueprint = Blueprint("api_v1", __name__, url_prefix="/api/v1")
 @api_bp.route("/locations")
 @login_required
 def list_locations() -> Response:
-    """Return the authenticated user's locations."""
-    locations: list[Location] = cast(
-        list[Location],
-        Location.query.filter_by(user_id=current_user.id).all(),  # type: ignore[attr-defined]
-    )
+    """Return the authenticated user's locations with pagination."""
+    page = request.args.get("page", 1, type=int)
+    per_page = 50
+    pagination = Location.query.filter_by(user_id=current_user.id).paginate(page=page, per_app=per_page, error_out=False)
+
     result: list[dict[str, Any]] = [
         {
             "id": loc.id,
@@ -36,9 +36,14 @@ def list_locations() -> Response:
             "longitude": loc.longitude,
             "timezone": loc.timezone,
         }
-        for loc in locations
+        for loc in pagination.items
     ]
-    return jsonify(result)
+    return jsonify({
+        "items": result,
+        "total": pagination.total,
+        "pages": pagination.pages,
+        "current_page": pagination.page
+    })
 
 
 @api_bp.route("/locations/<int:location_id>/current")

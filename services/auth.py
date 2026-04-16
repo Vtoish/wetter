@@ -70,7 +70,8 @@ def role_required(*roles: str) -> Callable[..., Any]:
 @auth_bp.route("/signup", methods=["GET", "POST"])
 @limiter.limit("5 per minute")
 def signup() -> str | Response | tuple[str, int]:
-    if current_user.is_authenticated:  # type: ignore[attr-defined]
+    user_auth: User = cast("User", current_user)
+    if user_auth.is_authenticated:
         return redirect(url_for("index"))
 
     if request.method == "POST":
@@ -174,20 +175,17 @@ def mfa_verify() -> str | Response | tuple[str, int]:
 
         if user.verify_totp(token):
             session.pop("mfa_pending_user_id", None)
-            session.pop("mfa_attempts", None)
             user.failed_attempts = 0
+            user.mfa_attempts = 0
             user.locked_until = None
             db.session.commit()
             login_user(user)
             session.permanent = True
             return redirect(url_for("index"))
 
-        mfa_attempts: int = session.get("mfa_attempts", 0) + 1
-        session["mfa_attempts"] = mfa_attempts
-
-        if mfa_attempts >= config.MAX_LOGIN_ATTEMPTS:
+        user.mfa_attempts += 1
+        if user.mfa_attempts >= config.MAX_LOGIN_ATTEMPTS:
             session.pop("mfa_pending_user_id", None)
-            session.pop("mfa_attempts", None)
             user.failed_attempts = config.MAX_LOGIN_ATTEMPTS
             user.locked_until = datetime.now(timezone.utc) + timedelta(
                 seconds=config.LOCKOUT_DURATION
@@ -197,6 +195,7 @@ def mfa_verify() -> str | Response | tuple[str, int]:
             return redirect(url_for("auth.login"))
 
         flash("Invalid code. Please try again.", "error")
+        db.session.commit()
         return render_template("auth/mfa.html"), 401
 
     return render_template("auth/mfa.html")

@@ -1,5 +1,6 @@
 import logging
 from typing import Any
+from concurrent.futures import ThreadPoolExecutor
 
 from flask import Flask, Response, jsonify, render_template, request
 from flask_login import LoginManager, login_required  # type: ignore[import-untyped]
@@ -10,6 +11,7 @@ from services.db import db
 from services.limiter import limiter
 
 logger: logging.Logger = logging.getLogger(__name__)
+executor = ThreadPoolExecutor(max_workers=2)
 
 
 def create_app(test_config: dict[str, Any] | None = None) -> Flask:
@@ -95,8 +97,11 @@ def create_app(test_config: dict[str, Any] | None = None) -> Flask:
         if lat is None or lon is None:
             return jsonify({"error": "lat and lon parameters are required"}), 400
 
-        primary: dict[str, Any] | None = openmeteo.fetch_weather(lat, lon)
-        secondary: dict[str, Any] | None = metno.fetch_weather(lat, lon)
+        future_primary = executor.submit(openmeteo.fetch_weather, lat, lon)
+        future_secondary = executor.submit(metno.fetch_weather, lat, lon)
+
+        primary: dict[str, Any] | None = future_primary.result()
+        secondary: dict[str, Any] | None = future_secondary.result()
 
         result: dict[str, Any]
         if primary:
@@ -114,6 +119,7 @@ def create_app(test_config: dict[str, Any] | None = None) -> Flask:
             }
 
         return jsonify(result)
+
 
     @app.route("/api/radar")
     @login_required

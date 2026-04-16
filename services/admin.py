@@ -14,8 +14,10 @@ admin_bp: Blueprint = Blueprint("admin", __name__, url_prefix="/admin")
 @admin_bp.route("/users")
 @role_required("admin")
 def users() -> str:
-    all_users: list[User] = cast(list[User], User.query.order_by(User.created_at.desc()).all())
-    return render_template("admin/users.html", users=all_users)
+    page = request.args.get("page", 1, type=int)
+    per_page = 20
+    pagination = User.query.order_by(User.created_at.desc()).paginate(page=page, per_app=per_page, error_out=False)
+    return render_template("admin/users.html", users=pagination.items, pagination=pagination)
 
 
 @admin_bp.route("/users/<int:user_id>/role", methods=["POST"])

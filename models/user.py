@@ -24,6 +24,7 @@ class User(UserMixin, db.Model):
     totp_secret: Mapped[Optional[str]] = mapped_column(db.String(32), default=None)
     mfa_enabled: Mapped[bool] = mapped_column(default=False)
     failed_attempts: Mapped[int] = mapped_column(default=0)
+    mfa_attempts: Mapped[int] = mapped_column(default=0)
     locked_until: Mapped[Optional[datetime]] = mapped_column(
         db.DateTime(timezone=True), default=None
     )
@@ -45,13 +46,15 @@ class User(UserMixin, db.Model):
         totp_secret: Optional[str] = None,
         mfa_enabled: bool = False,
         failed_attempts: int = 0,
+        mfa_attempts: int = 0,
         locked_until: Optional[datetime] = None,
         **kwargs: Any,
     ) -> None:
         kw: dict[str, Any] = dict(
             email=email, role=role, password_hash=password_hash,
             totp_secret=totp_secret, mfa_enabled=mfa_enabled,
-            failed_attempts=failed_attempts, locked_until=locked_until,
+            failed_attempts=failed_attempts, mfa_attempts=mfa_attempts,
+            locked_until=locked_until,
             **kwargs,
         )
         super().__init__(**kw)

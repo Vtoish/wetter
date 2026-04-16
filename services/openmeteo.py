@@ -81,13 +81,19 @@ def _normalize(raw: dict[str, Any]) -> dict[str, Any]:
         },
         "daily": [
             {
-                "date": daily_dates[i],
-                "temp_max": daily_maxs[i],
-                "temp_min": daily_mins[i],
-                "precipitation": daily_precip[i],
-                "description": WMO_CODES.get(daily_codes[i], ""),
+                "date": date,
+                "temp_max": t_max,
+                "temp_min": t_min,
+                "precipitation": precip,
+                "description": WMO_CODES.get(code, ""),
             }
-            for i in range(len(daily_dates))
+            for date, t_max, t_min, precip, code in zip(
+                daily_dates,
+                daily_maxs,
+                daily_mins,
+                daily_precip,
+                daily_codes,
+            )
         ],
     }
 
