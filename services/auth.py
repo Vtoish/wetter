@@ -17,7 +17,7 @@ from flask import (
     session,
     url_for,
 )
-from flask_login import current_user, login_required, login_user, logout_user  # type: ignore[import-untyped]
+from flask_login import current_user, login_required, login_user, logout_user
 from werkzeug.wrappers import Response
 
 import config
@@ -60,7 +60,9 @@ def role_required(*roles: str) -> Callable[..., Any]:
         @wraps(f)
         @login_required
         def wrapped(*args: Any, **kwargs: Any) -> Any:
-            if current_user.role not in roles:  # type: ignore[attr-defined]
+            if not current_user:
+                abort(401)
+            if current_user.role not in roles:
                 abort(403)
             return f(*args, **kwargs)
         return wrapped
@@ -70,7 +72,7 @@ def role_required(*roles: str) -> Callable[..., Any]:
 @auth_bp.route("/signup", methods=["GET", "POST"])
 @limiter.limit("5 per minute")
 def signup() -> str | Response | tuple[str, int]:
-    user_auth: User = cast("User", current_user)
+    user_auth: User = cast(User, current_user)
     if user_auth.is_authenticated:
         return redirect(url_for("index"))
 
@@ -111,7 +113,8 @@ def signup() -> str | Response | tuple[str, int]:
 @auth_bp.route("/login", methods=["GET", "POST"])
 @limiter.limit("10 per minute")
 def login() -> str | Response | tuple[str, int]:
-    if current_user.is_authenticated:  # type: ignore[attr-defined]
+    user = cast(User, current_user)
+    if user.is_authenticated:
         return redirect(url_for("index"))
 
     if request.method == "POST":
@@ -204,15 +207,16 @@ def mfa_verify() -> str | Response | tuple[str, int]:
 @auth_bp.route("/mfa/setup", methods=["GET", "POST"])
 @login_required
 def mfa_setup() -> str | Response:
-    if not current_user.totp_secret:  # type: ignore[attr-defined]
-        current_user.generate_totp_secret()  # type: ignore[attr-defined]
+    user: User = cast(User, current_user)
+    if not user.totp_secret:
+        user.generate_totp_secret()
         db.session.commit()
 
     if request.method == "POST":
         token: str = request.form.get("token", "").strip()
 
-        if current_user.verify_totp(token):  # type: ignore[attr-defined]
-            current_user.mfa_enabled = True  # type: ignore[attr-defined]
+        if user.verify_totp(token):
+            user.mfa_enabled = True
             db.session.commit()
             flash("MFA enabled successfully.", "success")
             return redirect(url_for("index"))
@@ -220,7 +224,7 @@ def mfa_setup() -> str | Response:
         flash("Invalid code. Please try again.", "error")
 
     # Generate QR code as base64 data URI
-    uri: str = current_user.get_totp_uri() or ""  # type: ignore[attr-defined]
+    uri: str = user.get_totp_uri() or ""
     img: Any = qrcode.make(uri)
     buf: io.BytesIO = io.BytesIO()
     img.save(buf, format="PNG")  # type: ignore[call-arg]
@@ -230,7 +234,7 @@ def mfa_setup() -> str | Response:
     return render_template(
         "auth/mfa_setup.html",
         qr_data=qr_data,
-        secret=current_user.totp_secret,  # type: ignore[attr-defined]
+        secret=user.totp_secret,
     )
 
 
@@ -239,13 +243,14 @@ def mfa_setup() -> str | Response:
 def mfa_disable() -> Response:
     token: str = request.form.get("token", "").strip()
 
-    if not current_user.mfa_enabled:  # type: ignore[attr-defined]
+    user = cast(User, current_user)
+    if not user.mfa_enabled:
         flash("MFA is not enabled.", "error")
         return redirect(url_for("auth.mfa_setup"))
 
-    if current_user.verify_totp(token):  # type: ignore[attr-defined]
-        current_user.mfa_enabled = False  # type: ignore[attr-defined]
-        current_user.totp_secret = None  # type: ignore[attr-defined]
+    if user.verify_totp(token):
+        user.mfa_enabled = False
+        user.totp_secret = None
         db.session.commit()
         flash("MFA disabled.", "success")
         return redirect(url_for("index"))

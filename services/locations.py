@@ -9,10 +9,11 @@ import logging
 from typing import Any, cast
 
 from flask import Blueprint, flash, redirect, render_template, request, url_for
-from flask_login import current_user, login_required  # type: ignore[import-untyped]
+from flask_login import current_user, login_required
 from werkzeug.wrappers import Response
 
 from models.location import Location
+from models.user import User
 from services.db import db
 
 logger: logging.Logger = logging.getLogger(__name__)
@@ -24,9 +25,10 @@ locations_bp: Blueprint = Blueprint("locations", __name__, url_prefix="/location
 @login_required
 def index() -> str:
     """List all locations for the current user."""
+    user = cast(User, current_user)
     user_locations: list[Location] = cast(
         list[Location],
-        Location.query.filter_by(user_id=current_user.id).order_by(  # type: ignore[attr-defined]
+        Location.query.filter_by(user_id=user.id).order_by(
             Location.created_at.desc()
         ).all(),
     )
@@ -37,6 +39,7 @@ def index() -> str:
 @login_required
 def create() -> Response:
     """Create a new location for the current user."""
+    user = cast(User, current_user)
     name: str = request.form.get("name", "").strip()
     lat_str: str = request.form.get("latitude", "")
     lon_str: str = request.form.get("longitude", "")
@@ -54,7 +57,7 @@ def create() -> Response:
         return redirect(url_for("locations.index"))
 
     location: Location = Location(
-        user_id=current_user.id,  # type: ignore[attr-defined]
+        user_id=user.id,
         name=name,
         latitude=lat,
         longitude=lon,
@@ -70,8 +73,9 @@ def create() -> Response:
 @login_required
 def detail(location_id: int) -> str | tuple[str, int]:
     """Show detail view for a single location."""
+    user = cast(User, current_user)
     location: Location | None = db.session.get(Location, location_id)
-    if not location or location.user_id != current_user.id:  # type: ignore[attr-defined]
+    if not location or location.user_id != user.id:
         flash("Location not found.", "error")
         return render_template("locations/index.html", locations=[]), 404
     return render_template("locations/detail.html", location=location)
@@ -81,8 +85,9 @@ def detail(location_id: int) -> str | tuple[str, int]:
 @login_required
 def delete(location_id: int) -> Response:
     """Delete a location owned by the current user."""
+    user = cast(User, current_user)
     location: Location | None = db.session.get(Location, location_id)
-    if not location or location.user_id != current_user.id:  # type: ignore[attr-defined]
+    if not location or location.user_id != user.id:
         flash("Location not found.", "error")
         return redirect(url_for("locations.index"))
 

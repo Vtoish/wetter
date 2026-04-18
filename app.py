@@ -2,8 +2,9 @@ import logging
 from typing import Any
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
-from flask import Flask, Response, jsonify, render_template, request
-from flask_login import LoginManager, login_required  # type: ignore[import-untyped]
+from flask import Flask, jsonify, render_template, request, Response
+from flask_login import LoginManager, login_required
+from flask_caching import Cache
 from flask_wtf.csrf import CSRFProtect  # type: ignore[import-untyped]
 
 import config
@@ -12,6 +13,7 @@ from services.limiter import limiter
 
 logger: logging.Logger = logging.getLogger(__name__)
 executor = ThreadPoolExecutor(max_workers=2)
+cache = Cache()
 
 
 def create_app(test_config: dict[str, Any] | None = None) -> Flask:
@@ -24,20 +26,24 @@ def create_app(test_config: dict[str, Any] | None = None) -> Flask:
     app.config["PERMANENT_SESSION_LIFETIME"] = config.PERMANENT_SESSION_LIFETIME
 
     if test_config:
-        app.config.update(test_config)  # type: ignore[reportUnknownMemberType]
+        app.config.update(test_config)
 
     # Extensions
     db.init_app(app)
     CSRFProtect(app)
     limiter.init_app(app)
+    cache.init_app(app, config={
+        "CACHE_TYPE": "simple",
+        "CACHE_DEFAULT_TIMEOUT": 600
+    })
 
     login_manager: LoginManager = LoginManager(app)
-    login_manager.login_view = "auth.login"  # type: ignore[assignment]
+    login_manager.login_view = "auth.login"
     login_manager.login_message_category = "error"
 
     from models.user import User
 
-    @login_manager.user_loader  # type: ignore[misc]
+    @login_manager.user_loader
     def load_user(user_id: str) -> User | None:
         return db.session.get(User, int(user_id))
 
@@ -91,6 +97,7 @@ def create_app(test_config: dict[str, Any] | None = None) -> Flask:
 
     @app.route("/api/weather")
     @login_required
+    @cache.cached(timeout=600)
     def api_weather() -> Response | tuple[Response, int]:
         lat: float | None = request.args.get("lat", type=float)
         lon: float | None = request.args.get("lon", type=float)
@@ -117,10 +124,6 @@ def create_app(test_config: dict[str, Any] | None = None) -> Flask:
             }), 503
 
         if len(results) == 2:
-            # We have both. One is primary, one is secondary.
-            # We want to keep the structure where 'secondary' is added to the primary.
-            # Since we don't know which is which from as_completed alone without checking 'source',
-            # let's identify them by their source.
             primary_res: dict[str, Any] | None = None
             secondary_res: dict[str, Any] | None = None
 
@@ -152,6 +155,7 @@ def create_app(test_config: dict[str, Any] | None = None) -> Flask:
 
     @app.route("/api/search")
     @login_required
+    @cache.cached(timeout=600)
     def api_search() -> Response:
         q: str = request.args.get("q", "").strip()
         if not q:

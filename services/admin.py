@@ -1,7 +1,7 @@
 from typing import cast
 
 from flask import Blueprint, flash, redirect, render_template, request, url_for
-from flask_login import current_user  # type: ignore[import-untyped]
+from flask_login import current_user
 from werkzeug.wrappers import Response
 
 from models.user import User
@@ -57,7 +57,7 @@ def unlock_user(user_id: int) -> Response:
 @admin_bp.route("/users/<int:user_id>/delete", methods=["POST"])
 @role_required("admin")
 def delete_user(user_id: int) -> Response:
-    if user_id == current_user.id:  # type: ignore[attr-defined]
+    if user_id == cast("User", current_user).id:
         flash("You cannot delete your own account.", "error")
         return redirect(url_for("admin.users"))
 

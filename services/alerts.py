@@ -9,7 +9,7 @@ import logging
 from typing import Any, cast
 
 from flask import Blueprint, flash, redirect, render_template, request, url_for
-from flask_login import current_user, login_required  # type: ignore[import-untyped]
+from flask_login import current_user, login_required
 from werkzeug.wrappers import Response
 
 from models.alert import Alert
@@ -25,16 +25,16 @@ alerts_bp: Blueprint = Blueprint("alerts", __name__, url_prefix="/alerts")
 @login_required
 def index() -> str:
     """List the current user's alert rules and recent triggered alerts."""
-    rules: list[AlertRule] = cast(
-        list[AlertRule],
-        AlertRule.query.filter_by(user_id=current_user.id).order_by(  # type: ignore[attr-defined]
-            AlertRule.created_at.desc()
-        ).all(),
-    )
-    recent_alerts: list[Alert] = cast(
+    user = cast(User, current_user)
+    rules: list[AlertRule] = AlertRule.query.filter_by(user_id=user.id).order_by(
+        AlertRule.created_at.desc()
+    ).all()
+    recent_alerts: list[
+        Alert
+    ] = cast(
         list[Alert],
         Alert.query.join(AlertRule).filter(
-            AlertRule.user_id == current_user.id  # type: ignore[attr-defined]
+            AlertRule.user_id == user.id
         ).order_by(Alert.triggered_at.desc()).limit(50).all(),
     )
     return render_template(
@@ -46,6 +46,7 @@ def index() -> str:
 @login_required
 def create_rule() -> Response:
     """Create a new alert rule."""
+    user = cast(User, current_user)
     name: str = request.form.get("name", "").strip()
     location_id_str: str = request.form.get("location_id", "")
     field: str = request.form.get("field", "").strip()
@@ -64,7 +65,7 @@ def create_rule() -> Response:
     }
 
     rule: AlertRule = AlertRule(
-        user_id=current_user.id,  # type: ignore[attr-defined]
+        user_id=user.id,
         location_id=int(location_id_str),
         name=name,
         condition_json=json.dumps(condition),
@@ -79,8 +80,9 @@ def create_rule() -> Response:
 @login_required
 def delete_rule(rule_id: int) -> Response:
     """Delete an alert rule owned by the current user."""
+    user = cast(User, current_user)
     rule: AlertRule | None = db.session.get(AlertRule, rule_id)
-    if not rule or rule.user_id != current_user.id:  # type: ignore[attr-defined]
+    if not rule or rule.user_id != user.id:
         flash("Rule not found.", "error")
         return redirect(url_for("alerts.index"))
 
@@ -94,8 +96,9 @@ def delete_rule(rule_id: int) -> Response:
 @login_required
 def acknowledge(alert_id: int) -> Response:
     """Acknowledge a triggered alert."""
+    user = cast(User, current_user)
     alert: Alert | None = db.session.get(Alert, alert_id)
-    if not alert:
+    if not alert or alert.user_id != user.id:
         flash("Alert not found.", "error")
         return redirect(url_for("alerts.index"))
 

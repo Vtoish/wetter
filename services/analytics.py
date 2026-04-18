@@ -9,7 +9,7 @@ import logging
 from typing import Any
 
 from flask import Blueprint, Response, jsonify, render_template, request
-from flask_login import login_required  # type: ignore[import-untyped]
+from flask_login import login_required
 
 from services.auth import role_required
 

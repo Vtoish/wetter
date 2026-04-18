@@ -10,7 +10,7 @@ import logging
 from typing import Any
 
 from flask import Blueprint, Response, flash, jsonify, redirect, render_template, request, url_for
-from flask_login import login_required  # type: ignore[import-untyped]
+from flask_login import login_required
 from werkzeug.wrappers import Response as WerkzeugResponse
 
 import config
@@ -28,7 +28,7 @@ federation_bp: Blueprint = Blueprint("federation", __name__, url_prefix="/federa
 @role_required("admin")
 def peers() -> str:
     """List all configured federation peers."""
-    all_peers: list[Peer] = Peer.query.order_by(Peer.created_at.desc()).all()  # type: ignore[assignment]
+    all_peers: list[Peer] = Peer.query.order_by(Peer.created_at.desc()).all()
     return render_template("federation/peers.html", peers=all_peers)
 
 

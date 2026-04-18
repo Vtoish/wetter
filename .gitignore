@@ -1,32 +1,43 @@
 # Python
 __pycache__/
 *.py[cod]
-*.egg-info/
-dist/
-build/
-.venv/
-venv/
+*$py.class
 
-# Instance data (database, secrets)
-instance/
-*.db
-
-# Environment
+# Environments
+.venv
+venv
+ENV
+env
 .env
+.venv/
+env/
+venv/
+test_venv/
 
-# IDE
+# IDEs
 .vscode/
 .idea/
-*.swp
-*.swo
 
 # OS
 .DS_Store
 Thumbs.db
 
-# Data exports
-data/exports/
-data/models/
+# Python
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+.ruff_cache/
 
-# Local Notes
-code_review.md
+# Local environment files
+.env
+.env.local
+.env.development.local
+.pyprofile
+
+# Project specific data
+data/
+outputs/

@@ -43,7 +43,7 @@ def test_weather_returns_data(mock_metno: MagicMock, mock_openmeteo: MagicMock, 
     mock_metno.return_value = None
 
     resp = authenticated_client.get("/api/weather?lat=52.52&lon=13.41")
-    data: dict[str, Any] = resp.get_json()  # type: ignore[assignment]
+    data: dict[str, Any] = resp.get_json()
 
     assert resp.status_code == 200
     assert data["source"] == "openmeteo"
@@ -67,7 +67,7 @@ def test_weather_fallback_to_metno(mock_metno: MagicMock, mock_openmeteo: MagicM
     }
 
     resp = authenticated_client.get("/api/weather?lat=52.52&lon=13.41")
-    data: dict[str, Any] = resp.get_json()  # type: ignore[assignment]
+    data: dict[str, Any] = resp.get_json()
 
     assert data["source"] == "metno"
 
@@ -79,7 +79,7 @@ def test_weather_both_fail(mock_metno: MagicMock, mock_openmeteo: MagicMock, aut
     mock_metno.return_value = None
 
     resp = authenticated_client.get("/api/weather?lat=52.52&lon=13.41")
-    data: dict[str, Any] = resp.get_json()  # type: ignore[assignment]
+    data: dict[str, Any] = resp.get_json()
 
     assert resp.status_code == 200
     assert "error" in data
@@ -108,7 +108,7 @@ def test_search_returns_results(mock_search: MagicMock, authenticated_client: Fl
                                   "admin1": "Berlin", "latitude": 52.52, "longitude": 13.41}]
 
     resp = authenticated_client.get("/api/search?q=Berlin")
-    data: list[dict[str, Any]] = resp.get_json()  # type: ignore[assignment]
+    data: Any = resp.get_json()
 
     assert len(data) == 1
     assert data[0]["name"] == "Berlin"
@@ -116,5 +116,5 @@ def test_search_returns_results(mock_search: MagicMock, authenticated_client: Fl
 
 def test_search_empty_query(authenticated_client: FlaskClient) -> None:
     resp = authenticated_client.get("/api/search?q=")
-    data: list[Any] = resp.get_json()  # type: ignore[assignment]
+    data: Any = resp.get_json()
     assert data == []

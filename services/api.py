@@ -9,9 +9,9 @@ import logging
 from typing import Any, cast
 
 from flask import Blueprint, Response, jsonify, request
-from flask_login import current_user, login_required  # type: ignore[import-untyped]
-
+from flask_login import current_user, login_required
 from models.location import Location
+from models.user import User
 from services import ml
 from services.db import db
 
@@ -24,9 +24,10 @@ api_bp: Blueprint = Blueprint("api_v1", __name__, url_prefix="/api/v1")
 @login_required
 def list_locations() -> Response:
     """Return the authenticated user's locations with pagination."""
+    user = cast(User, current_user)
     page = request.args.get("page", 1, type=int)
     per_page = 50
-    pagination = Location.query.filter_by(user_id=current_user.id).paginate(page=page, per_app=per_page, error_out=False)
+    pagination = Location.query.filter_by(user_id=user.id).paginate(page=page, per_app=per_page, error_out=False)
 
     result: list[dict[str, Any]] = [
         {
@@ -49,9 +50,10 @@ def list_locations() -> Response:
 @api_bp.route("/locations/<int:location_id>/current")
 @login_required
 def location_current(location_id: int) -> Response | tuple[Response, int]:
-    """Return current conditions and latest prediction for a location."""
+    """Return current and latest prediction for a location."""
+    user = cast(User, current_user)
     location: Location | None = db.session.get(Location, location_id)
-    if not location or location.user_id != current_user.id:  # type: ignore[attr-defined]
+    if not location or location.user_id != user.id:
         return jsonify({"error": "Location not found"}), 404
 
     prediction: dict[str, Any] | None = ml.get_latest_prediction(location_id)
@@ -73,8 +75,9 @@ def location_current(location_id: int) -> Response | tuple[Response, int]:
 @login_required
 def location_history(location_id: int) -> Response | tuple[Response, int]:
     """Return historical observation data for a location."""
+    user = cast(User, current_user)
     location: Location | None = db.session.get(Location, location_id)
-    if not location or location.user_id != current_user.id:  # type: ignore[attr-defined]
+    if not location or location.user_id != user.id:
         return jsonify({"error": "Location not found"}), 404
 
     days: int = request.args.get("days", 7, type=int)
@@ -90,13 +93,15 @@ def list_alerts() -> Response:
     """Return the authenticated user's recent alerts."""
     from models.alert import Alert
     from models.alert_rule import AlertRule
+    user = cast(User, current_user)
 
     alerts: list[Alert] = cast(
         list[Alert],
         Alert.query.join(AlertRule).filter(
-            AlertRule.user_id == current_user.id  # type: ignore[attr-defined]
+            AlertRule.user_id == user.id
         ).order_by(Alert.triggered_at.desc()).limit(50).all(),
     )
+
     result: list[dict[str, Any]] = [
         {
             "id": a.id,
@@ -114,8 +119,9 @@ def list_alerts() -> Response:
 @login_required
 def get_predictions(location_id: int) -> Response | tuple[Response, int]:
     """Return the latest prediction for a location."""
+    user = cast(User, current_user)
     location: Location | None = db.session.get(Location, location_id)
-    if not location or location.user_id != current_user.id:  # type: ignore[attr-defined]
+    if not location or location.user_id != user.id:
         return jsonify({"error": "Location not found"}), 404
 
     prediction: dict[str, Any] | None = ml.get_latest_prediction(location_id)
