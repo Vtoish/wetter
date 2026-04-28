@@ -41,3 +41,17 @@ htmlcov/
 # Project specific data
 data/
 outputs/
+
+# Flask instance folder (local DB and config)
+instance/
+
+# SQLite databases
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+
+
+# Personal notes and scratch files
+code_review.md
+overview.txt
