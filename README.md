@@ -207,4 +207,6 @@ pytest tests/test_auth.py::test_login_success # single test
 
 ## License
 
-Private project.
+AGPL-3.0-only — see [LICENSE](LICENSE) for the full text.
+
+Copyright (C) 2026 Vtoish

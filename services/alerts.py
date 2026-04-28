@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: AGPL-3.0-only
+# Copyright (C) 2026 Vtoish (Vtoish@live.com)
+
 """Alert system blueprint and evaluation engine.
 
 Users create alert rules with conditions (e.g., rain probability > 80%,

@@ -1,2 +1,6 @@
+[project]
+name = "wetter"
+license = {text = "AGPL-3.0-only"}
+
 [tool.pytest.ini_options]
 pythonpath = ["."]

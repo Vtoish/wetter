@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: AGPL-3.0-only
+# Copyright (C) 2026 Vtoish (Vtoish@live.com)
+
 """Feature engineering for ML models.
 
 Computes derived features from raw observations and forecast data

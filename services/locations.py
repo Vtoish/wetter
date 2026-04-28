@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: AGPL-3.0-only
+# Copyright (C) 2026 Vtoish (Vtoish@live.com)
+
 """Location management blueprint.
 
 Users can create, view, and delete locations. Each location
