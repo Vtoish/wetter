@@ -50,8 +50,3 @@ instance/
 *.db-journal
 *.db-wal
 *.db-shm
-
-
-# Personal notes and scratch files
-code_review.md
-overview.txt
